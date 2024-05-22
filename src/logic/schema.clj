@@ -5,7 +5,7 @@
 ;; Database
 ;; Create and connect to database
 (def db-uri "datomic:sql://logic?jdbc:postgresql://localhost:5432/datomic?user=postgres&password=PnHJGWm4FlaajEa")
-(d/create-database db-uri)
+;; (d/create-database db-uri)
 (def conn (d/connect db-uri))
 
 ;; Schema

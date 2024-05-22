@@ -24,11 +24,28 @@
     :else (data/db-assert kw desc))
   {:status 200 :body "Assertion added!"})
 
+(defn relate-assertion [{{ta :assertion/keyword
+                          ra :relation/keyword
+                          rt :relation/type} :edn-params}]
+  (let [[tid rid] (data/retrieve-assertion-ids [ta ra])
+        ncontains? (comp not contains?)
+        no-conflict (comp not data/db-has-conflict?)]
+    {:status 200 :body (cond
+                         (and (= rt :conflict)
+                              (ncontains? (data/db-parents ra) tid)
+                              (ncontains? (data/db-children ra) tid)) (data/db-conflict ta ra)
+                         (and (= rt :child)
+                              (no-conflict ta ra)) (data/db-relate ra ta)
+                         (and (= rt :parent)
+                              (no-conflict ta ra)) (data/db-relate ta ra)
+                         :else "Could not add relation!")}))
+
 (defn make-server []
   (let [routes #{;Routes
                  ["/all-assertions/" :get list-assertions :route-name :all-assertions]
                  ["/get-assertion/:assert-key" :get get-assertion :route-name :get-assertion]
                  ["/add-assertion/" :post [(body-params/body-params) add-assertion] :route-name :add-assertion]
+                 ["/relate-assertion/" :post [(body-params/body-params) relate-assertion] :route-name :relate-assertion]
                  ;; ["/grade-question/" :post [(body-params/body-params) grade-question]
                  ;;  :route-name :grade-question]
                  ;; ["/get-user-questions/:user/:category" :get get-filtered-questions :route-name :get-user-questions-filtered]

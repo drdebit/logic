@@ -8,7 +8,7 @@
                  [io.pedestal/pedestal.service "0.5.9"]
                  [io.pedestal/pedestal.route "0.5.9"]
                  [io.pedestal/pedestal.immutant "0.5.9"]
-                 [com.datomic/datomic-pro "1.0.6711"]
+                 [com.datomic/peer "1.0.7075"]
                  [org.slf4j/slf4j-simple "1.7.32"]
                  [environ/environ "1.2.0"]
                  [org.postgresql/postgresql "42.7.3"]]

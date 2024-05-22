@@ -32,6 +32,12 @@
              ;;  :db/cardinality :db.cardinality/many
              ;;  :db/doc "A logical dependent for the assertion."}
 
+;; Utilities
+(defn single-hash [hset]
+  (->> hset
+       (map first)
+       (apply hash-set)))
+
 ;; Database
 ;; Create and connect to database
 (def db-uri "datomic:sql://logic?jdbc:postgresql://localhost:5432/datomic?user=postgres&password=PnHJGWm4FlaajEa")
@@ -62,34 +68,60 @@
                                          [:db/add "value-add" :assertion/required-value v]])))
      :else "What is this thing you gave me?")))
 
-(defn db-associate [parent child]
+(defn db-parents [child]
+  (single-hash
+   (d/q '[:find ?parent
+          :in $ ?child
+          :where [?parent :assertion/dependent ?child]]
+        (d/db conn) (retrieve-assertion-id child))))
+
+(defn db-children [parent]
+  (single-hash
+   (d/q '[:find ?child
+          :in $ ?parent
+          :where [?parent :assertion/dependent ?child]]
+        (d/db conn) (retrieve-assertion-id parent))))
+
+(defn db-relate [parent child]
   (let [[pid cid] (retrieve-assertion-ids [parent child])]
     (do @(d/transact conn [[:db/add cid :assertion/depends-on pid]])
-        @(d/transact conn [[:db/add pid :assertion/dependent cid]]))))
+        @(d/transact conn [[:db/add pid :assertion/dependent cid]])
+        "Relation added!")))
 
-(defn db-disassociate [parent child]
+(defn db-unrelate [parent child]
   (let [[pid cid] (retrieve-assertion-ids [parent child])]
     (do @(d/transact conn [[:db/retract cid :assertion/depends-on pid]])
-        @(d/transact conn [[:db/retract pid :assertion/dependent cid]]))))
+        @(d/transact conn [[:db/retract pid :assertion/dependent cid]])
+        "Relation removed!")))
+
+(defn db-has-conflict? [a1 a2]
+  (let [[a1id a2id] (retrieve-assertion-ids [a1 a2])
+        conflicts (single-hash
+                   (d/q '[:find ?conflict
+                          :in $ ?a1
+                          :where [?a1 :assertion/conflicts-with ?conflict]]
+                        (d/db conn) a1id))]
+    (contains? conflicts a2id)))
 
 (defn db-conflict [a1 a2]
   (let [[a1id a2id] (retrieve-assertion-ids [a1 a2])]
     (do @(d/transact conn [[:db/add a1id :assertion/conflicts-with a2id]])
-        @(d/transact conn [[:db/add a2id :assertion/conflicts-with a1id]]))))
+        @(d/transact conn [[:db/add a2id :assertion/conflicts-with a1id]])
+        "Conflict added!")))
 
 (defn db-unconflict [a1 a2]
   (let [[a1id a2id] (retrieve-assertion-ids [a1 a2])]
     (do @(d/transact conn [[:db/retract a1id :assertion/conflicts-with a2id]])
-        @(d/transact conn [[:db/retract a2id :assertion/conflicts-with a1id]]))))
-
-(defn db-all-assertions []
-  (apply vector (d/q '[:find ?akw ?desc
-                       :where [?a :assertion/keyword]
-                       [?a :assertion/keyword ?akw]
-                       [?a :assertion/description ?desc]] (d/db conn))))
+        @(d/transact conn [[:db/retract a2id :assertion/conflicts-with a1id]])
+        "Conflict removed!")))
 
 (defn db-show-assertion [kw]
   (d/pull (d/db conn) '[*] (retrieve-assertion-id kw)))
+
+(defn db-all-assertions []
+  (mapv (comp db-show-assertion first) (d/q '[:find ?akw
+                                 :where [?a :assertion/keyword]
+                                 [?a :assertion/keyword ?akw]] (d/db conn))))
 
 (defn db-all-depends [kw]
   (let [a (retrieve-assertion-id kw)]
