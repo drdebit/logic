@@ -50,6 +50,9 @@
                        :else (str "Could not remove relation!"
                                   rt))})
 
+(defn all-relations [{{k :assert-key} :path-params}]
+  {:status 200 :body (data/db-all-relations k)})
+
 (defn make-server []
   (let [routes #{;Routes
                  ["/all-assertions/" :get list-assertions :route-name :all-assertions]
@@ -57,6 +60,7 @@
                  ["/add-assertion/" :post [(body-params/body-params) add-assertion] :route-name :add-assertion]
                  ["/relate-assertion/" :post [(body-params/body-params) relate-assertion] :route-name :relate-assertion]
                  ["/unrelate-assertion/" :post [(body-params/body-params) unrelate-assertion] :route-name :unrelate-assertion]
+                 ["/all-relations/:assert-key" :get all-relations :route-name :all-relations]
                  ;; ["/grade-question/" :post [(body-params/body-params) grade-question]
                  ;;  :route-name :grade-question]
                  ;; ["/get-user-questions/:user/:category" :get get-filtered-questions :route-name :get-user-questions-filtered]

@@ -82,6 +82,18 @@
           :where [?parent :assertion/dependent ?child]]
         (d/db conn) (retrieve-assertion-id parent))))
 
+(defn db-conflicts [assertion]
+  (single-hash
+   (d/q '[:find ?a
+          :in $ ?assertion
+          :where [?assertion :assertion/conflicts-with ?a]]
+        (d/db conn) (retrieve-assertion-id assertion))))
+
+(defn db-all-relations [assertion]
+  (into (db-conflicts assertion)
+        (into (db-parents assertion)
+              (db-children assertion))))
+
 (defn db-relate [parent child]
   (let [[pid cid] (retrieve-assertion-ids [parent child])]
     (do @(d/transact conn [[:db/add cid :assertion/depends-on pid]])
