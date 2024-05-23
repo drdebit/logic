@@ -40,12 +40,23 @@
                               (no-conflict ta ra)) (data/db-relate ta ra)
                          :else "Could not add relation!")}))
 
+(defn unrelate-assertion [{{ta :assertion/keyword
+                            ra :relation/keyword
+                            rt :relation/type} :edn-params}]
+  {:status 200 :body (cond
+                       (= rt :parent) (data/db-unrelate ta ra)
+                       (= rt :child) (data/db-unrelate ra ta)
+                       (= rt :conflict) (data/db-unconflict ta ra)
+                       :else (str "Could not remove relation!"
+                                  rt))})
+
 (defn make-server []
   (let [routes #{;Routes
                  ["/all-assertions/" :get list-assertions :route-name :all-assertions]
                  ["/get-assertion/:assert-key" :get get-assertion :route-name :get-assertion]
                  ["/add-assertion/" :post [(body-params/body-params) add-assertion] :route-name :add-assertion]
                  ["/relate-assertion/" :post [(body-params/body-params) relate-assertion] :route-name :relate-assertion]
+                 ["/unrelate-assertion/" :post [(body-params/body-params) unrelate-assertion] :route-name :unrelate-assertion]
                  ;; ["/grade-question/" :post [(body-params/body-params) grade-question]
                  ;;  :route-name :grade-question]
                  ;; ["/get-user-questions/:user/:category" :get get-filtered-questions :route-name :get-user-questions-filtered]
