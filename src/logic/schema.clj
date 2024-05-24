@@ -20,6 +20,10 @@
               :db/valueType :db.type/bigint
               :db/cardinality :db.cardinality/one
               :db/doc "A unique identifier for a transaction."}
+             {:db/ident :transaction/description
+              :db/valueType :db.type/string
+              :db/cardinality :db.cardinality/one
+              :db/doc "An optional description of the transaction."}
              {:db/ident :transaction/attribute
               :db/valueType :db.type/ref
               :db/cardinality :db.cardinality/many
