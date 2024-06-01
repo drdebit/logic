@@ -51,6 +51,9 @@
 (defn retrieve-assertion-ids [v]
   (mapv retrieve-assertion-id v))
 
+(defn db-retract [id]
+  @(d/transact conn [[:db/retractEntity id]]))
+
 (defn db-assert
   ([kw desc]
    @(d/transact conn [[:db/add "assert-add" :assertion/keyword kw]
@@ -61,11 +64,30 @@
      @(d/transact conn [[:db/add "assert-add" :assertion/keyword kw]
                         [:db/add "assert-add" :assertion/description desc]
                         [:db/add "assert-add" :assertion/required-value vd]])
-     (coll? vd) (do @(d/transact conn [[:db/add "assert-add" :assertion/keyword kw]
-                                       [:db/add "assert-add" :assertion/description desc]])
-                    (for [v vd]
-                      @(d/transact conn [[:db/add "value-add" :assertion/keyword kw]
-                                         [:db/add "value-add" :assertion/required-value v]])))
+     (map? vd) (let [rv-query '[:find ?rvid :in $ ?desc ?dt
+                                :where [?rvid :required-value/description ?desc]
+                                [?rvid :required-value/data-type ?dt]]
+                     {rvid :db/id
+                      rdesc :required-value/description
+                      rdt :required-value/data-type} vd]
+                 (if rvid
+                   @(d/transact conn [[:db/add "assert-add" :assertion/keyword kw]
+                                      [:db/add "assert-add" :assertion/description desc]
+                                      [:db/add "assert-add" :assertion/require-value rvid]
+                                      [:db/add rvid :required-value/description rdesc]
+                                      [:db/add rvid :required-value/data-type rdt]])
+                   (do @(d/transact conn [[:db/add "rv1" :required-value/description rdesc]
+                                          [:db/add "rv1" :required-value/data-type rdt]])
+                       @(d/transact conn [[:db/add "value-add" :assertion/keyword kw]
+                                          [:db/add "value-add" :assertion/description desc]
+                                          [:db/add "value-add" :assertion/require-value
+                                           (ffirst (d/q rv-query (d/db conn) rdesc rdt))]]))))
+
+     (vector? vd) (do @(d/transact conn [[:db/add "assert-add" :assertion/keyword kw]
+                                         [:db/add "assert-add" :assertion/description desc]])
+                      (for [v vd]
+                        @(d/transact conn [[:db/add "value-add" :assertion/keyword kw]
+                                           [:db/add "value-add" :assertion/required-value v]])))
      :else "What is this thing you gave me?")))
 
 (defn db-parents [child]
@@ -128,7 +150,10 @@
         "Conflict removed!")))
 
 (defn db-show-assertion [kw]
-  (d/pull (d/db conn) '[*] (retrieve-assertion-id kw)))
+  (let [m (d/pull (d/db conn) '[*] (retrieve-assertion-id kw))]
+    (if-let [rv (:assertion/require-value m)]
+      (assoc m :assertion/require-value (d/pull (d/db conn) '[*] (:db/id (first rv))))
+      m)))
 
 (defn db-all-assertions []
   (mapv (comp db-show-assertion first) (d/q '[:find ?akw

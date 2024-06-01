@@ -18,7 +18,7 @@
 
 (defn add-assertion [{{kw :assertion/keyword
                        desc :assertion/description
-                       vd :assertion/required-value} :edn-params}]
+                       vd :assertion/require-value} :edn-params}]
   (cond
     vd (data/db-assert kw desc vd)
     :else (data/db-assert kw desc))
